@@ -169,7 +169,7 @@ jobs:
 
 ## License
 
-MIT © Your Name
+MIT © Dipanshu Singh
 
 ---
 
