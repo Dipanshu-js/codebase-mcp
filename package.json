@@ -1,0 +1,41 @@
+{
+  "name": "codebase-mcp",
+  "version": "1.0.0",
+  "description": "Auto-generate AI-ready context from your codebase — works with any LLM, agent, or MCP tool",
+  "main": "dist/cli.js",
+  "bin": {
+    "codebase-mcp": "./dist/cli.js",
+    "cbmcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": ["mcp", "model-context-protocol", "codebase", "context", "llm", "ai", "cli", "developer-tools", "claude", "cursor", "agent", "chatgpt", "copilot"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "fast-glob": "^3.3.2",
+    "simple-git": "^3.22.0",
+    "chalk": "^4.1.2",
+    "clipboardy": "^2.3.0",
+    "ora": "^5.4.1",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ]
+}
