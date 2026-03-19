@@ -1,0 +1,165 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import glob from 'fast-glob';
+import { ScanResult } from '../types';
+import { scan } from './index';
+
+export interface MonorepoResult {
+  root: string;
+  packages: Array<{
+    name: string;
+    path: string;
+    result: ScanResult;
+  }>;
+}
+
+// ── Workspace detection ───────────────────────────────────────────────
+
+export function detectMonorepo(rootPath: string): string[] | null {
+  // npm / yarn workspaces
+  const pkgPath = path.join(rootPath, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const workspaces: string[] | undefined =
+        Array.isArray(pkg.workspaces) ? pkg.workspaces
+        : Array.isArray(pkg.workspaces?.packages) ? pkg.workspaces.packages
+        : undefined;
+      if (workspaces?.length) return workspaces;
+    } catch { /* ignore */ }
+  }
+
+  // pnpm workspaces
+  const pnpmWs = path.join(rootPath, 'pnpm-workspace.yaml');
+  if (fs.existsSync(pnpmWs)) {
+    try {
+      const raw = fs.readFileSync(pnpmWs, 'utf8');
+      // Simple yaml list parser — handles "  - packages/*" style entries
+      const matches = [...raw.matchAll(/^\s*-\s+['"]?([^'"#\n]+?)['"]?\s*$/gm)];
+      const patterns = matches.map(m => m[1].trim()).filter(Boolean);
+      if (patterns.length) return patterns;
+    } catch { /* ignore */ }
+  }
+
+  // lerna
+  const lernaPath = path.join(rootPath, 'lerna.json');
+  if (fs.existsSync(lernaPath)) {
+    try {
+      const lerna = JSON.parse(fs.readFileSync(lernaPath, 'utf8'));
+      if (Array.isArray(lerna.packages) && lerna.packages.length) {
+        return lerna.packages;
+      }
+    } catch { /* ignore */ }
+  }
+
+  return null;
+}
+
+// ── Resolve workspace glob patterns → absolute paths ─────────────────
+
+export async function resolveWorkspacePaths(
+  rootPath: string,
+  patterns: string[]
+): Promise<string[]> {
+  const resolved: string[] = [];
+
+  for (const pattern of patterns) {
+    if (pattern.includes('*')) {
+      // Glob pattern — find matching directories
+      const matches = await glob(pattern, {
+        cwd: rootPath,
+        onlyDirectories: true,
+        absolute: true,
+        ignore: ['**/node_modules/**'],
+      });
+      resolved.push(...matches);
+    } else {
+      const abs = path.resolve(rootPath, pattern);
+      if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
+        resolved.push(abs);
+      }
+    }
+  }
+
+  // Deduplicate and exclude root itself
+  return [...new Set(resolved)].filter(p => p !== rootPath);
+}
+
+// ── Scan a monorepo ───────────────────────────────────────────────────
+
+export async function scanMonorepo(rootPath: string): Promise<MonorepoResult | null> {
+  const patterns = detectMonorepo(rootPath);
+  if (!patterns) return null;
+
+  const packagePaths = await resolveWorkspacePaths(rootPath, patterns);
+  if (packagePaths.length === 0) return null;
+
+  const packages: MonorepoResult['packages'] = [];
+
+  for (const pkgPath of packagePaths) {
+    // Only scan packages that have their own package.json
+    const pkgJson = path.join(pkgPath, 'package.json');
+    if (!fs.existsSync(pkgJson)) continue;
+
+    try {
+      const result = await scan(pkgPath);
+      packages.push({
+        name: result.meta.name || path.basename(pkgPath),
+        path: path.relative(rootPath, pkgPath),
+        result,
+      });
+    } catch { /* skip broken packages */ }
+  }
+
+  if (packages.length === 0) return null;
+
+  return { root: rootPath, packages };
+}
+
+// ── Generate combined markdown for a monorepo ─────────────────────────
+
+export function generateMonorepoMarkdown(mono: MonorepoResult): string {
+  const lines: string[] = [];
+  const date = new Date().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  lines.push(`## Monorepo context`);
+  lines.push(`Generated: ${date} by [codebase-mcp](https://github.com/Dipanshu-js/codebase-mcp)`);
+  lines.push('');
+  lines.push(`**Root:** \`${mono.root}\``);
+  lines.push(`**Packages:** ${mono.packages.length}`);
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  for (const pkg of mono.packages) {
+    lines.push(`## ${pkg.name}`);
+    lines.push(`Path: \`${pkg.path}\``);
+    lines.push('');
+
+    const { stack, components, git } = pkg.result;
+
+    // Mini stack summary
+    const stackParts: string[] = [];
+    if (stack.framework) stackParts.push(stack.framework);
+    stackParts.push(stack.language);
+    if (stack.styling.length) stackParts.push(stack.styling[0]);
+    if (stackParts.length) lines.push(`Stack: **${stackParts.join(' · ')}**`);
+
+    if (components.length > 0) {
+      lines.push(`Components: **${components.length}** files`);
+    }
+
+    if (git) {
+      lines.push(`Branch: **${git.branch}**${git.hasUncommitted ? ' (dirty)' : ''}`);
+    }
+
+    lines.push('');
+  }
+
+  lines.push('---');
+  lines.push('*Generated by [codebase-mcp](https://github.com/Dipanshu-js/codebase-mcp)*');
+
+  return lines.join('\n');
+}
