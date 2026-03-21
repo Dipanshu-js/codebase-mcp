@@ -7,6 +7,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { scan } from './scanner';
 import { generateMarkdown } from './generator/markdown';
+import { renderTemplate } from './generator/template';
+import { scanMonorepo, generateMonorepoMarkdown } from './scanner/monorepo';
+import { syncToClaudeProject, resolveSyncOptions } from './commands/sync';
+import { startMcpServer } from './mcp/server';
 
 const program = new Command();
 
@@ -14,7 +18,7 @@ const program = new Command();
 function printBanner() {
   console.log('');
   console.log(chalk.cyan.bold('  ╔════════════════════════════════════════╗'));
-  console.log(chalk.cyan.bold('  ║') + chalk.yellow.bold('  codebase-mcp  ') + chalk.gray('v1.0.0              ') + chalk.cyan.bold('║'));
+  console.log(chalk.cyan.bold('  ║') + chalk.yellow.bold('  codebase-mcp  ') + chalk.gray('v2.5.0              ') + chalk.cyan.bold('║'));
   console.log(chalk.cyan.bold('  ║') + chalk.gray('  Your codebase → AI-ready context      ') + chalk.cyan.bold('║'));
   console.log(chalk.cyan.bold('  ╚════════════════════════════════════════╝'));
   console.log('');
@@ -24,7 +28,7 @@ function printBanner() {
 program
   .name('codebase-mcp')
   .description('Auto-generate AI-ready context from your codebase — works with any LLM, agent, or MCP tool')
-  .version('1.0.0')
+  .version('2.5.0')
   .alias('cbmcp');
 
 program
@@ -36,6 +40,8 @@ program
   .option('--print', 'print to stdout instead of writing file', false)
   .option('--no-git', 'skip git history scan')
   .option('--no-components', 'skip component inventory')
+  .option('-t, --template <path>', 'use a custom template file (supports {{variable}} placeholders)')
+  .option('--monorepo', 'force monorepo mode — scan all workspace packages', false)
   .action(async (options) => {
     printBanner();
 
@@ -52,6 +58,44 @@ program
     }).start();
 
     try {
+      // ── Monorepo mode ───────────────────────────────────────────
+      if (options.monorepo) {
+        spinner.text = chalk.gray('Detecting workspace packages...');
+        const mono = await scanMonorepo(rootPath);
+
+        if (!mono) {
+          spinner.fail(chalk.red('No workspace packages found. Is this a monorepo?'));
+          process.exit(1);
+        }
+
+        spinner.succeed(chalk.green(`Found ${mono.packages.length} packages`));
+
+        const markdown = generateMonorepoMarkdown(mono);
+
+        if (options.print) {
+          console.log('\n' + chalk.gray('─'.repeat(60)) + '\n');
+          console.log(markdown);
+          return;
+        }
+
+        const outputPath = path.resolve(options.output);
+        fs.writeFileSync(outputPath, markdown, 'utf8');
+        console.log('');
+        console.log(chalk.green(`  ✓ Monorepo context written to `) + chalk.bold(options.output));
+
+        if (options.copy) {
+          try {
+            const clipboardy = require('clipboardy');
+            await clipboardy.default.write(markdown);
+            console.log(chalk.green('  ✓ Copied to clipboard'));
+          } catch {
+            console.log(chalk.yellow('  ⚠ Clipboard copy failed — paste from file'));
+          }
+        }
+        console.log('');
+        return;
+      }
+
       // ── Run scan ────────────────────────────────────────────────
       spinner.text = chalk.gray('Reading package.json and detecting stack...');
       const result = await scan(rootPath);
@@ -60,7 +104,12 @@ program
       await new Promise(r => setTimeout(r, 100)); // let spinner render
 
       spinner.text = chalk.gray('Generating CONTEXT.md...');
-      const markdown = generateMarkdown(result);
+      let markdown: string;
+      if (options.template) {
+        markdown = renderTemplate(path.resolve(options.template), result);
+      } else {
+        markdown = generateMarkdown(result);
+      }
 
       spinner.succeed(chalk.green('Scan complete'));
       console.log('');
@@ -161,6 +210,66 @@ program
     } catch (err: any) {
       spinner.fail(chalk.red('Failed: ' + err?.message));
     }
+  });
+
+// ── Sync command ──────────────────────────────────────────────────────
+program
+  .command('sync')
+  .description('Sync CONTEXT.md to a Claude Project (auto-updates project instructions)')
+  .option('-p, --path <path>', 'path to project root', process.cwd())
+  .option('-o, --output <file>', 'context file to sync', 'CONTEXT.md')
+  .option('--project <id>', 'Claude Project UUID (or set CLAUDE_PROJECT_ID env var)')
+  .option('--generate', 'regenerate CONTEXT.md before syncing', false)
+  .action(async (options) => {
+    printBanner();
+
+    const rootPath = path.resolve(options.path);
+
+    const spinner = ora({ text: chalk.gray('Preparing sync...'), spinner: 'dots' }).start();
+
+    try {
+      // Optionally regenerate first
+      if (options.generate) {
+        spinner.text = chalk.gray('Generating fresh CONTEXT.md...');
+        const result = await scan(rootPath);
+        const markdown = generateMarkdown(result);
+        fs.writeFileSync(path.resolve(rootPath, options.output), markdown, 'utf8');
+      }
+
+      const syncOpts = resolveSyncOptions(rootPath, options.output, options.project);
+
+      spinner.text = chalk.gray('Uploading to Claude Project...');
+      await syncToClaudeProject(syncOpts);
+
+      spinner.succeed(chalk.green('Context synced to Claude Project'));
+      console.log('');
+      console.log(chalk.gray('  CONTEXT.md is now active in your Claude Project.'));
+      console.log(chalk.gray('  Every new conversation will have your full codebase context.'));
+      console.log('');
+    } catch (err: any) {
+      spinner.fail(chalk.red('Sync failed'));
+      console.error(chalk.red('  ' + (err?.message || String(err))));
+      console.log('');
+      process.exit(1);
+    }
+  });
+
+// ── Serve command (MCP server mode) ──────────────────────────────────
+program
+  .command('serve')
+  .description('Start as a Model Context Protocol (MCP) server — exposes codebase tools over stdio')
+  .option('-p, --path <path>', 'path to project root', process.cwd())
+  .action((options) => {
+    const rootPath = path.resolve(options.path);
+
+    if (!fs.existsSync(rootPath)) {
+      process.stderr.write(`codebase-mcp: path not found: ${rootPath}\n`);
+      process.exit(1);
+    }
+
+    // MCP servers must not write non-JSON to stdout — skip the banner
+    process.stderr.write(`codebase-mcp MCP server v2.5.0 — serving ${rootPath}\n`);
+    startMcpServer(rootPath);
   });
 
 // ── Summary printer ───────────────────────────────────────────────────

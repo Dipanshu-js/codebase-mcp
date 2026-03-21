@@ -1,6 +1,6 @@
 {
   "name": "codebase-mcp",
-  "version": "1.0.0",
+  "version": "2.5.0",
   "description": "Auto-generate AI-ready context from your codebase — works with any LLM, agent, or MCP tool",
   "main": "dist/cli.js",
   "bin": {
