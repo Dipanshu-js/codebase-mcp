@@ -1,0 +1,101 @@
+{
+  "name": "codebase-mcp-vscode",
+  "displayName": "codebase-mcp",
+  "description": "Auto-generate AI-ready context from your codebase — works with Claude, Cursor, ChatGPT, and any MCP agent",
+  "version": "2.0.0",
+  "publisher": "codebase-mcp",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "Programming Languages"],
+  "keywords": ["mcp", "context", "ai", "llm", "claude", "cursor", "chatgpt"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "icon": "images/icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codebase-mcp.generate",
+        "title": "Generate CONTEXT.md",
+        "category": "codebase-mcp"
+      },
+      {
+        "command": "codebase-mcp.generateAndCopy",
+        "title": "Generate and Copy to Clipboard",
+        "category": "codebase-mcp"
+      },
+      {
+        "command": "codebase-mcp.watch",
+        "title": "Start Watch Mode",
+        "category": "codebase-mcp"
+      },
+      {
+        "command": "codebase-mcp.stopWatch",
+        "title": "Stop Watch Mode",
+        "category": "codebase-mcp"
+      },
+      {
+        "command": "codebase-mcp.stats",
+        "title": "Show Project Stats",
+        "category": "codebase-mcp"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "codebase-mcp.generate",
+          "when": "explorerResourceIsFolder",
+          "group": "codebase-mcp"
+        }
+      ],
+      "commandPalette": [
+        { "command": "codebase-mcp.generate" },
+        { "command": "codebase-mcp.generateAndCopy" },
+        { "command": "codebase-mcp.watch" },
+        { "command": "codebase-mcp.stopWatch" },
+        { "command": "codebase-mcp.stats" }
+      ]
+    },
+    "configuration": {
+      "title": "codebase-mcp",
+      "properties": {
+        "codebase-mcp.outputFile": {
+          "type": "string",
+          "default": "CONTEXT.md",
+          "description": "Output file name for generated context"
+        },
+        "codebase-mcp.autoWatch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start watch mode when a project is opened"
+        },
+        "codebase-mcp.templatePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a custom template file (supports {{variable}} placeholders)"
+        },
+        "codebase-mcp.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show codebase-mcp status in the status bar"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "dependencies": {
+    "codebase-mcp": "^1.5.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
