@@ -9,7 +9,7 @@ npx codebase-mcp
 Stop re-explaining your stack every AI session. One command reads your entire codebase and outputs a structured `CONTEXT.md` — paste it into Claude, Cursor, ChatGPT, or any MCP-compatible agent instantly.
 
 [![npm version](https://img.shields.io/npm/v/codebase-mcp)](https://www.npmjs.com/package/codebase-mcp)
-[![GitHub stars](https://img.shields.io/github/stars/yourusername/codebase-mcp)](https://github.com/yourusername/codebase-mcp)
+[![GitHub stars](https://img.shields.io/github/stars/Dipanshu-js/codebase-mcp)](https://github.com/Dipanshu-js/codebase-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -50,6 +50,10 @@ codebase-mcp --print      # print to stdout
 codebase-mcp watch        # auto-regenerate on file changes
 codebase-mcp stats        # show project summary, no file written
 codebase-mcp --path /x    # scan a different directory
+codebase-mcp --template ./my-template.md  # use a custom template
+codebase-mcp --monorepo   # scan all workspace packages
+codebase-mcp sync         # push CONTEXT.md to Claude Projects
+codebase-mcp serve        # start MCP server (stdio)
 ```
 
 ---
@@ -123,9 +127,11 @@ Branch: **main**
 
 ---
 
-## MCP server mode (v2 — coming soon)
+## MCP server mode
 
-`codebase-mcp` is evolving into a full **Model Context Protocol server** — exposing your codebase as structured, queryable context that any MCP-compatible agent can consume at runtime.
+`codebase-mcp serve` exposes your codebase as a full **Model Context Protocol server** — any MCP-compatible agent (Claude Desktop, Cursor, Windsurf, Continue) can query it at runtime.
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -137,6 +143,17 @@ Branch: **main**
   }
 }
 ```
+
+**Available tools**
+
+| Tool | Description |
+|---|---|
+| `get_context` | Full CONTEXT.md — primary source of truth |
+| `get_stack` | Framework, language, deps, build setup |
+| `get_structure` | Folder tree (3 levels deep) |
+| `search_components` | Search component inventory by name or type |
+| `get_git_history` | Branch, recent commits, uncommitted state |
+| `get_conventions` | Naming rules, aliases, test co-location |
 
 ---
 
@@ -161,9 +178,9 @@ jobs:
 ## Roadmap
 
 - [x] v1.0 — Core scanner, 40+ frameworks, git history, conventions
-- [ ] v1.5 — Watch mode, custom templates, monorepo support
-- [ ] v2.0 — VS Code extension, Claude Projects auto-sync
-- [ ] v2.5 — Full MCP server mode
+- [x] v1.5 — Watch mode, custom templates, monorepo support
+- [x] v2.0 — VS Code extension, Claude Projects auto-sync
+- [x] v2.5 — Full MCP server mode
 
 ---
 

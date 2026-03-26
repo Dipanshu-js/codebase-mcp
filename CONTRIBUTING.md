@@ -5,7 +5,7 @@ Thanks for helping make `codebase-mcp` better.
 ## Setup
 
 ```bash
-git clone https://github.com/yourusername/codebase-mcp
+git clone https://github.com/Dipanshu-js/codebase-mcp
 cd codebase-mcp
 npm install
 ```
