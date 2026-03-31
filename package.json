@@ -1,21 +1,63 @@
 {
   "name": "codebase-mcp",
   "version": "2.5.0",
-  "description": "Auto-generate AI-ready context from your codebase — works with any LLM, agent, or MCP tool",
+  "description": "Auto-generate AI-ready context from your codebase. One command → CONTEXT.md ready to paste into Claude, Cursor, ChatGPT or any MCP agent. Full MCP server mode included.",
   "main": "dist/cli.js",
   "bin": {
-    "codebase-mcp": "./dist/cli.js",
-    "cbmcp": "./dist/cli.js"
+    "codebase-mcp": "dist/cli.js",
+    "cbmcp": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "dev": "ts-node src/cli.ts",
     "start": "node dist/cli.js",
     "lint": "eslint src/**/*.ts"
   },
-  "keywords": ["mcp", "model-context-protocol", "codebase", "context", "llm", "ai", "cli", "developer-tools", "claude", "cursor", "agent", "chatgpt", "copilot"],
-  "author": "Your Name",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "codebase",
+    "context",
+    "llm",
+    "ai",
+    "cli",
+    "developer-tools",
+    "claude",
+    "cursor",
+    "windsurf",
+    "agent",
+    "chatgpt",
+    "copilot",
+    "aider",
+    "continue",
+    "anthropic",
+    "code-context",
+    "ai-tools",
+    "nextjs",
+    "react",
+    "typescript",
+    "javascript",
+    "monorepo",
+    "codebase-scanner",
+    "project-context",
+    "mcp-server",
+    "vscode",
+    "context-generator"
+  ],
+  "author": {
+    "name": "Dipanshu Singh",
+    "url": "https://github.com/Dipanshu-js"
+  },
   "license": "MIT",
+  "homepage": "https://github.com/Dipanshu-js/codebase-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dipanshu-js/codebase-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dipanshu-js/codebase-mcp/issues"
+  },
   "dependencies": {
     "commander": "^11.1.0",
     "fast-glob": "^3.3.2",
